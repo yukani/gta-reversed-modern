@@ -34,12 +34,20 @@ public:
     uint32                field_60084;
     int32                 field_60088{0u};
     uint64                m_nLastUpdateTime;
-    IDirectSoundBuffer*   m_pSilenceBuffer;
+#if defined(USE_DSOUND)
+    IDirectSoundBuffer* m_pSilenceBuffer;
+#elif defined(USE_OPENAL)
+#ifdef COMPATIBLE_STRUCT_SIZE
+private:
+    uint8 _pad1[sizeof(void*)];
+public:
+#endif
+#endif
     float                 m_fSomething{1.0f};
 
 public:
-    CAEStreamingChannel(IDirectSound* directSound, uint16 channelId)
-        : CAEAudioChannel(directSound, channelId, 48000, 16)
+    CAEStreamingChannel(void* platform, uint16 channelId)
+        : CAEAudioChannel(platform, channelId, 48000, 16)
     {} // 0x4F1800
     ~CAEStreamingChannel() override;
 

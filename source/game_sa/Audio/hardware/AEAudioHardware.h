@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dsound.h"
+#include "audio_platform.h"
 
 #include "Vector.h"
 
@@ -49,8 +49,6 @@ class CAEMP3BankLoader;
 class CAEAudioChannel;
 class tBeatInfo;
 
-#define USE_DSOUND
-
 class CAEAudioHardware {
 public:
     bool                    m_bInitialised{};
@@ -94,12 +92,19 @@ public:
     float                   m_fBassEqGain{};
     CAEMP3BankLoader*       m_pMP3BankLoader{};
     CAEMP3TrackLoader*      m_pMP3TrackLoader{};
+#if defined(USE_DSOUND)
     IDirectSound8*          m_pDSDevice{};
     uint32                  m_nSpeakerConfig{};
     int32                   m_n3dEffectsQueryResult{};
     DSCAPS                  m_dsCaps{};
     IDirectSound3DListener* m_pDirectSound3dListener{};
     CAEStreamingChannel*    m_pStreamingChannel{};
+#elif defined(USE_OPENAL)
+    ALint m_alDevice;
+    ALint m_alContext;
+#ifdef COMPATIBLE_STRUCT_SIZE
+#endif
+#endif
     CAEStreamThread         m_pStreamThread{};
     CAEAudioChannel*        m_aChannels[MAX_NUM_AUDIO_CHANNELS]{};
     tBeatInfo               gBeatInfo{};
