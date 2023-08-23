@@ -1,7 +1,6 @@
 #pragma once
 #include "OALBase.h"
 
-#ifdef USE_OPENAL
 class OALBuffer;
 
 enum class OALSourceType {
@@ -15,15 +14,15 @@ class OALSource final : public OALBase {
 public:
     static inline HeapPtrArray<OALSource> activeSources{};
 
-    ALuint                  m_sourceId{0};
-    OALSourceType           m_type{ OALSourceType::OST_Uninitialized };
-    uint32                  field_14;
-    OALBuffer*              m_oalBuffer{nullptr};
+    ALuint m_sourceId{0};
+    OALSourceType m_type{OALSourceType::OST_Uninitialized};
+    uint32 field_14;
+    OALBuffer* m_oalBuffer{nullptr};
     HeapPtrArray<OALBuffer> m_queuedBuffers{};
-    uint32                  m_posOffset{0};
-    float                   m_currentVolume{1.0f};
-    ALuint                  m_currentState{};
-    bool                    m_wasStopped{false};
+    uint32 m_posOffset{0};
+    float m_currentVolume{1.0f};
+    ALuint m_currentState{};
+    bool m_wasStopped{false};
 
 public:
     OALSource() : OALBase() {}
@@ -45,5 +44,7 @@ public:
     void SetVolume(float volume);
 
     void Update();
+
+    // NOTSA
+    OALSource(const OALSource&) = delete;
 };
-#endif

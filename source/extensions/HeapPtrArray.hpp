@@ -9,6 +9,7 @@
 // allocators and remove the `UseCFree` flag.
 template<typename T, bool UseCFree = false>
 class HeapPtrArray : public std::vector<T*> {
+public:
     HeapPtrArray() = default;
     ~HeapPtrArray() {
         for (auto& ptr : *this) {

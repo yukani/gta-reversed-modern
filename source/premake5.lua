@@ -65,7 +65,6 @@ project "gta_reversed"
         "Winmm.lib",
         "dxguid.lib",
         "strmiids.lib",
-        "dsound.lib",
         "d3d9.lib"
     }
 
@@ -73,6 +72,19 @@ project "gta_reversed"
         links { 
             "dbghelp" 
         }
+	
+	filter "platforms:win-*-dsound"
+		links {
+			"dsound.lib"
+		}
+		
+		removefiles {
+			"game_sa/Audio/OpenAL/**.c*"
+		}
+		
+		removeincludedirs {
+			"game_sa/Audio/OpenAL"
+		}
     filter {}
 
     libdirs { 

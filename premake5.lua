@@ -34,6 +34,12 @@ solution "gta_reversed"
     targetprefix "" -- no 'lib' prefix on gcc
     targetdir("bin/%{cfg.buildcfg}")
     
+	filter "system:windows"
+		platforms {
+			"win-x86-dsound",
+			"win-x86-openal",
+		}
+	
     filter "configurations:Debug*"
         staticruntime "off"
         symbols "On"
@@ -57,6 +63,18 @@ solution "gta_reversed"
 
     filter "files:libs/**"
         warnings "Off"
+
+    filter "platforms:win-*-openal"
+	    defines { "USE_DSOUND" }
+		undefines { "USE_OPENAL" }
+
+	filter "platforms:win-*-openal"
+		includedirs "libs/openal-soft/include"
+		defines { "USE_OPENAL" }
+		undefines { "USE_DSOUND" }
+
+    filter "platforms:win-x86-openal"
+		libdirs { "libs/openal-soft/libs/Win32" }
 
     filter {}
 

@@ -1,5 +1,5 @@
 #pragma once
-#ifdef USE_OPENAL
+#include <AL/al.h>
 #include "extensions/HeapPtrArray.hpp"
 
 // This class has to be heap allocated! (with  new`)
@@ -26,4 +26,3 @@ public:
 
 bool OALCheckErrors(std::string_view file, int32 line);
 #define OAL_CHECKED(c) (c, OALCheckErrors(__FILE__, __LINE__))
-#endif
