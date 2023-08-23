@@ -24,8 +24,8 @@ void CAEAudioChannel::InjectHooks() {
 }
 
 // 0x4D7890
-CAEAudioChannel::CAEAudioChannel(IDirectSound* directSound, uint16 channelId, uint32 samplesPerSec, uint16 bitsPerSample) {
-    m_pDirectSound        = directSound;
+CAEAudioChannel::CAEAudioChannel(void* platform, uint16 channelId, uint32 samplesPerSec, uint16 bitsPerSample) {
+    m_pDirectSound        = reinterpret_cast<IDirectSound*>(platform);
     m_nChannelId          = channelId;
     m_nFlags              = 0;
     m_nBufferStatus       = 0;
@@ -36,7 +36,7 @@ CAEAudioChannel::CAEAudioChannel(IDirectSound* directSound, uint16 channelId, ui
     m_pDirectSound3DBuffer= nullptr;
     m_bNoScalingFactor    = false;
     m_bLooped             = false;
-    field_45              = 0;
+    m_bShouldStop         = false;
     m_WaveFormat.wFormatTag = WAVE_FORMAT_PCM;
     m_WaveFormat.nChannels = 1;
     m_WaveFormat.nSamplesPerSec = samplesPerSec;
@@ -131,6 +131,10 @@ void CAEAudioChannel::SetVolume(float volume) {
 
     AESmoothFadeThread.SetBufferVolume(m_pDirectSoundBuffer, volume);
     m_fVolume = volume;
+}
+
+bool CAEAudioChannel::IsBufferPlaying() const {
+    return m_nBufferStatus & DSBSTATUS_PLAYING;
 }
 
 // 0x4D79A0

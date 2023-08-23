@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dsound.h"
+#include "audio_platform.h"
 
 enum eSmoothFadeEntryStatus : uint32 {
     STATE_INACTIVE = 0,
@@ -9,7 +9,11 @@ enum eSmoothFadeEntryStatus : uint32 {
 };
 
 struct tSmoothFadeEntry {
+#if defined(USE_DSOUND)
     IDirectSoundBuffer*    m_pSoundBuffer;
+#elif defined(USE_OPENAL)
+    OALSource*             m_pSource;
+#endif
     float                  m_fStartVolume;
     float                  m_fTargetVolume;
     float                  m_fVolumeDiff;
@@ -28,6 +32,7 @@ public:
 
     HANDLE           m_threadHandle;
     DWORD            m_dwThreadId;
+    // TODO: ^^^^ std::thread impl
     tSmoothFadeEntry m_aEntries[NUM_SMOOTHFADE_ENTRIES];
     bool             m_bThreadCreated;
     bool             m_bActive;

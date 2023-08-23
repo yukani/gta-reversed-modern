@@ -1,50 +1,60 @@
 #pragma once
 
-#include "dsound.h"
+#include "audio_platform.h"
 
 #include "Vector.h"
-
-#define USE_DSOUND
 
 #pragma pack(push, 1)
 class CAEAudioChannel {
 public:
-#ifdef USE_DSOUND
+#if defined(USE_DSOUND)
     IDirectSound*         m_pDirectSound;
     union {
         IDirectSoundBuffer*  m_pDirectSoundBuffer;
         IDirectSoundBuffer8* m_pDirectSoundBuffer8;
     };
     IDirectSound3DBuffer* m_pDirectSound3DBuffer;
+#elif defined(USE_OPENAL)
+    OALSource*            m_pSource;
+#ifdef COMPATIBLE_STRUCT_SIZE
+private:
+    uint8 __pad1[sizeof(void*) * 2];
+public:
+#endif
 #endif
 
-    char                  _pad10[24];
-    uint32                m_nFlags;
-    uint32                m_nLengthInBytes;
-    uint32                field_30; // unused
-    float                 m_fVolume;
-    bool                  m_bNoScalingFactor;
-    uint8                 field_39; // unused
-    uint16                m_nChannelId;
-    uint32                m_nFrequency;
-    uint32                m_nOriginalFrequency;
-    bool                  m_bLooped;
-    uint8                 field_45;
-    uint8                 field_46; // unused
-    WAVEFORMATEX          m_WaveFormat;
-    uint16                field_59;
+    char   _pad10[24];
+    uint32 m_nFlags;
+    uint32 m_nLengthInBytes;
+    uint32 field_30; // unused
+    float  m_fVolume;
+    bool   m_bNoScalingFactor;
+    uint8  field_39; // unused
+    uint16 m_nChannelId;
+    uint32 m_nFrequency;
+    uint32 m_nOriginalFrequency;
+    bool   m_bLooped;
+    bool   m_bShouldStop;
+    bool   m_bShouldPlay; // unused
 #ifdef USE_DSOUND
-    char                  _pad;
+    WAVEFORMATEX m_WaveFormat;
+    uint16       field_59;
+    char         _pad;
     union {
         struct {
             bool Bit0x1 : 1;
         } bufferStatus;
         uint32 m_nBufferStatus;
     };
+#else
+#ifdef COMPATIBLE_STRUCT_SIZE
+private:
+    uint8 _pad2[18 + 2 + 1 + 4];
+#endif
 #endif
 
 public:
-    CAEAudioChannel(IDirectSound* directSound, uint16 channelId, uint32 samplesPerSec, uint16 bitsPerSample);
+    CAEAudioChannel(void* platform, uint16 channelId, uint32 samplesPerSec, uint16 bitsPerSample);
     virtual ~CAEAudioChannel();
 
     // VTABLE
@@ -60,7 +70,7 @@ public:
     void   SetPosition(const CVector& vecPos) const;
     float  GetVolume() const { return m_fVolume; };
     void   SetVolume(float volume);
-    bool   IsBufferPlaying() const { return m_nBufferStatus & DSBSTATUS_PLAYING; };
+    bool   IsBufferPlaying() const;
     uint32 GetCurrentPlaybackPosition() const;
     uint32 ConvertFromBytesToMS(uint32 bytes) const;
     uint32 ConvertFromMsToBytes(uint32 ms) const;
@@ -83,7 +93,9 @@ private:
 };
 #pragma pack(pop)
 VALIDATE_SIZE(CAEAudioChannel, 0x60);
+#ifdef USE_DSOUND
 VALIDATE_OFFSET(CAEAudioChannel, m_pDirectSound, 0x4);
+#endif
 VALIDATE_OFFSET(CAEAudioChannel, m_nChannelId, 0x3A);
 //VALIDATE_OFFSET(CAEAudioChannel, m_nBufferFrequency, 0x4B);
 //VALIDATE_OFFSET(CAEAudioChannel, m_wFrequencyMult, 0x49);

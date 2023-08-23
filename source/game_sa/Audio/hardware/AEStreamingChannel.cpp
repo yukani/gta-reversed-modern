@@ -267,7 +267,7 @@ void CAEStreamingChannel::PrepareStream(CAEStreamingDecoder* newDecoder, int8 ar
     SetOriginalFrequency(newDecoder->GetSampleRate());
     m_bWrongSampleRate = false;
     m_bPrepareNewStream = false;
-    field_45 = 0;
+    m_bShouldStop = 0;
     m_pDirectSoundBuffer->SetCurrentPosition(0);
 }
 
