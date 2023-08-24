@@ -42,7 +42,6 @@ public:
 #elif defined(USE_OPENAL)
     bool SetAudioBuffer(OALBuffer* buffer, uint16 size, int16 f88, int16 f8c, int16 loopOffset, uint16 frequency);
 #endif
-    
 
 private:
     friend void InjectHooksMain();

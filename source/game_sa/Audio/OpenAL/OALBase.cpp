@@ -1,5 +1,8 @@
 #include "StdInc.h"
 #include "OALBase.h"
+#include "oswrapper.h"
+
+extern void* s_oalTrashMutex;
 
 OALBase::OALBase() {
     m_refCount = 1;
@@ -14,9 +17,9 @@ void OALBase::Release() {
     if (--m_refCount)
         return;
 
-    // OS_MutexObtain(trashMutex);
+    OS_MutexObtain(s_oalTrashMutex);
     trashCan.push_back(this);
-    // OS_MutexRelease(trashMutex);
+    OS_MutexRelease(s_oalTrashMutex);
 }
 
 void OALBase::AddRef() {

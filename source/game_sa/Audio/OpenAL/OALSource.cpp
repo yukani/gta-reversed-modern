@@ -1,8 +1,8 @@
 #include "StdInc.h"
 #include "OALSource.h"
 #include "OALBuffer.h"
+#include <AL/al.h>
 
-#ifdef USE_OPENAL
 OALSource::~OALSource() {
     if (m_oalBuffer && m_type != OALSourceType::OST_Preloop) {
         if (m_sourceId)
@@ -125,15 +125,27 @@ void OALSource::Pause() {
     alSourcePause(m_sourceId);
 }
 
-float OALSource::GetVolume() {
-    return std::log(1.0f / m_currentVolume) * -8.6562f; // todo: constant
+void OALSource::Stop() {
+    if (m_type == OALSourceType::OST_Preloop)
+        UnqueueBuffers();
+
+    alSourceStop(m_sourceId);
+    m_posOffset = 0;
+    m_currentState = AL_STOPPED;
+    m_wasStopped = true;
 }
 
-void OALSource::SetVolume(float volume)
-{
+float OALSource::GetVolume() {
+    constexpr auto AMP_dB = 8.6562f; // 6.0f / ln(2.0f)
+
+    // SA: std::log(1.0f / m_currentVolume) * -AMP_dB;
+    return std::log(std::pow(m_currentVolume, AMP_dB));
+}
+
+void OALSource::SetVolume(float volume) {
     ObtainSource();
 
-    if (const auto vol = std::min(1.0f / std::exp2f(volume / -6.0f), 1.0f); m_currentVolume != vol) {
+    if (const auto vol = std::min(std::exp2(volume / 6.0f), 1.0f); m_currentVolume != vol) {
         m_currentVolume = vol;
         alSourcef(m_sourceId, AL_GAIN, vol);
     }
@@ -154,4 +166,3 @@ void OALSource::Update() {
         alSourceQueueBuffers(m_sourceId, 1, &m_oalBuffer->m_bufferId);
     }
 }
-#endif

@@ -64,17 +64,18 @@ solution "gta_reversed"
     filter "files:libs/**"
         warnings "Off"
 
-    filter "platforms:win-x86-dsound"
+    filter "platforms:win-x86-dsound" -- todo: win-*-openal
 	    defines { "USE_DSOUND" }
 		undefines { "USE_OPENAL" }
 
-	filter "platforms:win-x86-openal"
+	filter "platforms:win-x86-openal" -- todo: *-*-openal
 		includedirs "libs/openal-soft/include"
 		defines { "USE_OPENAL" }
 		undefines { "USE_DSOUND" }
 
     filter "platforms:win-x86-openal"
 		libdirs { "libs/openal-soft/libs/Win32" }
+		links { "OpenAL32" }
 
     filter {}
 

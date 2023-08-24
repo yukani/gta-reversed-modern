@@ -21,7 +21,7 @@ public:
     HeapPtrArray<OALBuffer> m_queuedBuffers{};
     uint32 m_posOffset{0};
     float m_currentVolume{1.0f};
-    ALuint m_currentState{};
+    ALenum m_currentState{AL_NONE};
     bool m_wasStopped{false};
 
 public:
@@ -39,6 +39,7 @@ public:
 
     void Play();
     void Pause();
+    void Stop(); // possibly inlined
 
     float GetVolume();
     void SetVolume(float volume);

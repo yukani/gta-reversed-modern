@@ -2,7 +2,7 @@
 #include <AL/al.h>
 #include "extensions/HeapPtrArray.hpp"
 
-// This class has to be heap allocated! (with  new`)
+// This class has to be heap allocated! (with `new`)
 class OALBase {
 public:
     // Number of living `OALBase` object instances.

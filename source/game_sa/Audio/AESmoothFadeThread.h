@@ -10,7 +10,7 @@ enum eSmoothFadeEntryStatus : uint32 {
 
 struct tSmoothFadeEntry {
 #if defined(USE_DSOUND)
-    IDirectSoundBuffer*    m_pSoundBuffer;
+    IDirectSoundBuffer*    m_pSource;
 #elif defined(USE_OPENAL)
     OALSource*             m_pSource;
 #endif
@@ -23,6 +23,15 @@ struct tSmoothFadeEntry {
     uint16                 m_wFadeTime;
     eSmoothFadeEntryStatus m_nStatus;
     uint32                 m_nStartTime;
+
+    void SetInactive() {
+        m_nStatus = eSmoothFadeEntryStatus::STATE_INACTIVE;
+#if defined(USE_DSOUND)
+        m_pSource = nullptr;
+#elif defined(USE_OPENAL)
+        m_pSource = nullptr;
+#endif
+    }
 };
 VALIDATE_SIZE(tSmoothFadeEntry, 0x20);
 
@@ -55,12 +64,13 @@ public:
     void Stop();
     void WaitForExit();
     void Service();
-    void CancelFade(IDirectSoundBuffer* buffer);
-    bool RequestFade(IDirectSoundBuffer* buffer, float fTargetVolume, int16 fadeTime, bool bStopBufferAfterFade);
-    void SetBufferVolume(IDirectSoundBuffer* buffer, float volume);
+
+    void CancelFade(void* sourceBuffer);
+    bool RequestFade(void* sourceBuffer, float fTargetVolume, int16 fadeTime, bool bStopBufferAfterFade);
+    void SetBufferVolume(void* sourceBuffer, float volume);
 
     static DWORD WINAPI SmoothFadeProc(void* smoothFade);
 };
 VALIDATE_SIZE(CAESmoothFadeThread, 0x81C);
 
-extern CAESmoothFadeThread& AESmoothFadeThread;
+static inline CAESmoothFadeThread& AESmoothFadeThread = *(CAESmoothFadeThread*)0xB608D0;

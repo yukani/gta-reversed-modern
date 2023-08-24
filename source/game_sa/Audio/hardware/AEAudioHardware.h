@@ -63,7 +63,7 @@ public:
     uint16                  m_nNumAvailableChannels{};
     uint16                  m_nNumChannels{};
     uint16                  m_anNumChannelsInSlot[MAX_NUM_AUDIO_CHANNELS]{};
-    float                   m_afChannelVolumes[MAX_NUM_AUDIO_CHANNELS]{};   // -1000.f
+    float                   m_afChannelVolumes[MAX_NUM_AUDIO_CHANNELS]{-1000.0f};
     float                   m_afUnkn[MAX_NUM_AUDIO_CHANNELS]{};
     float                   m_afChannelsFrqScalingFactor[MAX_NUM_AUDIO_CHANNELS]{};
 
@@ -93,18 +93,19 @@ public:
     CAEMP3BankLoader*       m_pMP3BankLoader{};
     CAEMP3TrackLoader*      m_pMP3TrackLoader{};
 #if defined(USE_DSOUND)
-    IDirectSound8*          m_pDSDevice{};
+    IDirectSound8*          m_pPlatformDevice{};
     uint32                  m_nSpeakerConfig{};
     int32                   m_n3dEffectsQueryResult{};
     DSCAPS                  m_dsCaps{};
     IDirectSound3DListener* m_pDirectSound3dListener{};
-    CAEStreamingChannel*    m_pStreamingChannel{};
 #elif defined(USE_OPENAL)
-    ALint m_alDevice;
-    ALint m_alContext;
+    ALCdevice*              m_pPlatformDevice;
+    ALCcontext*             m_alContext;
 #ifdef COMPATIBLE_STRUCT_SIZE
+    uint8 _pad[4 + 4 + 96];
 #endif
 #endif
+    CAEStreamingChannel*    m_pStreamingChannel{};
     CAEStreamThread         m_pStreamThread{};
     CAEAudioChannel*        m_aChannels[MAX_NUM_AUDIO_CHANNELS]{};
     tBeatInfo               gBeatInfo{};
@@ -115,12 +116,17 @@ public:
 
     // Return types aren't real, I've just copied the signatures for now
 
-    CAEAudioHardware();
+    CAEAudioHardware() = default; // 0x4D83E0
     ~CAEAudioHardware() = default;
 
     bool Initialise();
-    void InitOpenALListener();
+
+#if defined(USE_DSOUND)
+    bool InitDirectSound(); // NOTSA
     bool InitDirectSoundListener(uint32 numChannels, uint32 samplesPerSec, uint32 bitsPerSample);
+#elif defined(USE_OPENAL)
+    void InitOpenALListener();
+#endif
     void Terminate();
 
     int16 AllocateChannels(uint16 numChannels);
@@ -190,7 +196,9 @@ public:
     void PauseAllSounds();
     void ResumeAllSounds();
 
+#ifdef USE_DSOUND
     void Query3DSoundEffects();
+#endif
 
     void Service();
 
@@ -213,4 +221,4 @@ private:
 };
 VALIDATE_SIZE(CAEAudioHardware, 0x1014); // Size might be bigger, but nothing is accessed beyond `0x1014`
 
-extern CAEAudioHardware& AEAudioHardware;
+static inline CAEAudioHardware& AEAudioHardware = *reinterpret_cast<CAEAudioHardware*>(0xB5F8B8);

@@ -7,11 +7,15 @@
 #include "AEStaticChannel.h"
 #include "AEUserRadioTrackManager.h"
 
-CAEAudioHardware& AEAudioHardware = *reinterpret_cast<CAEAudioHardware*>(0xB5F8B8);
-
 void CAEAudioHardware::InjectHooks() {
     RH_ScopedClass(CAEAudioHardware);
     RH_ScopedCategory("Audio/Hardware");
+  
+#ifdef USE_DSOUND
+    constexpr bool IsIncompatible = false;
+#else
+    constexpr bool IsIncompatible = true;
+#endif
 
     RH_ScopedInstall(Constructor, 0x4D83E0);
     RH_ScopedInstall(Destructor, 0x4D83A0);
@@ -64,16 +68,12 @@ void CAEAudioHardware::InjectHooks() {
     RH_ScopedInstall(CheckDVD, 0x4D95E0);
     RH_ScopedInstall(PauseAllSounds, 0x4D95F0);
     RH_ScopedInstall(ResumeAllSounds, 0x4D9630);
+#ifdef USE_DSOUND
     RH_ScopedInstall(InitDirectSoundListener, 0x4D9640);
-    RH_ScopedInstall(Terminate, 0x4D97A0);
-    RH_ScopedInstall(Service, 0x4D9870);
-    RH_ScopedInstall(Initialise, 0x4D9930, { .reversed = false });
-}
-
-// 0x4D83E0
-CAEAudioHardware::CAEAudioHardware() {
-    rng::fill(m_afChannelVolumes, -1000.f);
-    // Rest done using member initializers
+#endif
+    RH_ScopedInstall(Terminate, 0x4D97A0, {.locked = IsIncompatible});
+    RH_ScopedInstall(Service, 0x4D9870, {.locked = IsIncompatible});
+    RH_ScopedInstall(Initialise, 0x4D9930, {.reversed = false, .locked = IsIncompatible});
 }
 
 // 0x4D9930
@@ -85,48 +85,20 @@ bool CAEAudioHardware::Initialise() {
         return false;
     }
 
-    VERIFY(SUCCEEDED(CoInitialize(nullptr)));
-
-    // TODO: We need EAX headers here.
-    //
-    // Though, EAX through DirectSound IS NOT SUPPORTED after Windows Vista since
-    // Windows doesn't emulate EAX extensions.
-    //
-    // Wine or 3rd party DSOUND libraries may support it so we should have them
-    // here.
-
-    // if (FAILED(EAXDirectSoundCreate(&DSDEVID_DefaultPlayback, &m_pDSDevice, 0)))
-    //    return false;
-
-    if (FAILED(DirectSoundCreate8(&DSDEVID_DefaultPlayback, &m_pDSDevice, 0)))
+#if defined(USE_DSOUND)
+    if (!InitDirectSound())
         return false;
+#elif defined(USE_OPENAL)
+    InitOpenALListener();
 
-    m_dsCaps.dwSize = 96;
-    m_pDSDevice->GetCaps(&m_dsCaps);
-
-    if (FAILED(m_pDSDevice->SetCooperativeLevel(PSGLOBAL(window), DSSCL_PRIORITY))
-        || !InitDirectSoundListener(2, 48'000, 16))
-        return false;
-
-    m_pDSDevice->GetSpeakerConfig((LPDWORD)&m_nSpeakerConfig);
-
-    m_pStreamingChannel = new CAEStreamingChannel(m_pDSDevice, 0);
-    m_pStreamingChannel->Initialise();
-
-    const uint32 freeHw3DAllBuffers = m_dsCaps.dwFreeHw3DAllBuffers;
-    if (freeHw3DAllBuffers < 24) {
-        m_nNumChannels = 48;
-        AESmoothFadeThread.m_nNumAvailableBuffers = 48;
-        field_4 = 0;
-    } else {
-        m_nNumChannels = std::min(freeHw3DAllBuffers, 64u) - 7;
-        field_4 = 1;
-        AESmoothFadeThread.m_nNumAvailableBuffers = 7;
-    }
+    m_nNumAvailableChannels = 25;
+    field_4 = true;
+    AESmoothFadeThread.m_nNumAvailableBuffers = 7;
+#endif
 
     m_aChannels[0] = m_pStreamingChannel;
     for (auto i = 1u; i < m_nNumChannels; i++) {
-        m_aChannels[i] = new CAEStaticChannel(m_pDSDevice, i, field_4, 44'100, 16);
+        m_aChannels[i] = new CAEStaticChannel(m_pPlatformDevice, i, field_4, 44'100, 16);
     }
 
     m_pStreamingChannel->SetVolume(-100.0f);
@@ -164,66 +136,6 @@ bool CAEAudioHardware::Initialise() {
     return true;
 }
 
-// 0x4D9640
-bool CAEAudioHardware::InitDirectSoundListener(uint32 numChannels, uint32 samplesPerSec, uint32 bitsPerSample) {
-    if (!m_pDSDevice)
-        return false;
-
-    DSBUFFERDESC dsBuffDsc{
-        sizeof(DSBUFFERDESC),
-        DSBCAPS_CTRL3D | DSBCAPS_PRIMARYBUFFER,
-        0,
-        0,
-        0,
-    };
-    LPDIRECTSOUNDBUFFER soundbuf;
-    if (FAILED(m_pDSDevice->CreateSoundBuffer(&dsBuffDsc, &soundbuf, NULL))) {
-        return false;
-    }
-
-    const auto nBlockAlign = numChannels * bitsPerSample / 8;
-    WAVEFORMATEX wavFmt{
-        .wFormatTag      = 1,
-        .nChannels       = (WORD)numChannels,
-        .nSamplesPerSec  = samplesPerSec,
-        .nAvgBytesPerSec = samplesPerSec * nBlockAlign,
-        .nBlockAlign     = (WORD)nBlockAlign,
-        .wBitsPerSample  = (WORD)bitsPerSample,
-        .cbSize          = 0
-    };
-    if (FAILED(soundbuf->SetFormat(&wavFmt))) {
-#ifdef FIX_BUGS
-        soundbuf->Release();
-#endif
-        return false;
-    }
-
-    auto& listener = m_pDirectSound3dListener;
-    if (FAILED(soundbuf->QueryInterface(
-        IID_IDirectSound3DListener,
-        (LPVOID*)&listener
-    ))) {
-        soundbuf->Release();
-        return false;
-    }
-
-    listener->SetPosition(0.f, 0.f, 0.f, TRUE);
-    listener->SetOrientation(
-        0.f, 1.f, 0.f,  // In Front
-        0.f, 0.f, -1.f, // Bottom
-        TRUE
-    );
-    listener->SetRolloffFactor(0.f, TRUE);
-    listener->SetDopplerFactor(0.f, TRUE);
-    listener->CommitDeferredSettings();
-
-    soundbuf->Release();
-
-    Query3DSoundEffects();
-
-    return true;
-}
-
 // 0x4D97A0
 void CAEAudioHardware::Terminate() {
     m_bInitialised = false;
@@ -235,8 +147,15 @@ void CAEAudioHardware::Terminate() {
     }
     delete std::exchange(m_pMP3BankLoader, nullptr);
     delete std::exchange(m_pMP3TrackLoader, nullptr);
+
+#if defined(USE_DSOUND)
     SAFE_RELEASE(m_pDirectSound3dListener);
-    SAFE_RELEASE(m_pDSDevice);
+    SAFE_RELEASE(m_pPlatformDevice);
+#elif defined(USE_OPENAL)
+    alcMakeContextCurrent(nullptr);
+    alcDestroyContext(m_alContext);
+    alcCloseDevice(m_pPlatformDevice);
+#endif
 }
 
 void CAEAudioHardware::PlaySound(int16 channel, uint16 channelSlot, uint16 soundIdInSlot, uint16 bankSlot, int16 playPosition, int16 flags, float speed) {
@@ -592,44 +511,15 @@ void CAEAudioHardware::ResumeAllSounds() {
     RescaleChannelVolumes();
 }
 
-// 0x4D8490
-void CAEAudioHardware::Query3DSoundEffects() {
-    DSBUFFERDESC bufferDesc;
-    bufferDesc.guid3DAlgorithm = GUID_NULL;
-    bufferDesc.lpwfxFormat = nullptr;
-    bufferDesc.dwFlags = DSBCAPS_CTRL3D;
-    bufferDesc.dwReserved = 0;
-    bufferDesc.dwSize = sizeof(DSBUFFERDESC);
-    bufferDesc.dwBufferBytes = 1024;
-
-    IDirectSoundBuffer* ppDSBuffer{};
-    if (FAILED(m_pDSDevice->CreateSoundBuffer(&bufferDesc, &ppDSBuffer, 0)) || !ppDSBuffer)
-        return;
-
-    IDirectSound3DBuffer* ppDS3DBuffer{};
-    if (FAILED(ppDSBuffer->QueryInterface(IID_IDirectSound3DBuffer, (LPVOID*)&ppDS3DBuffer)) || !ppDS3DBuffer)
-        ppDSBuffer->Release();
-
-    IKsPropertySet* ppIKsPropertySet{};
-    if (ppDS3DBuffer->QueryInterface(IID_IKsPropertySet, (LPVOID*)&ppIKsPropertySet) == S_OK) {
-        // TODO: EAX (0x4D8593)
-        m_n3dEffectsQueryResult = 1;
-        SAFE_RELEASE(ppIKsPropertySet);
-    }
-    if (!m_n3dEffectsQueryResult)
-        m_n3dEffectsQueryResult = 2;
-
-    SAFE_RELEASE(ppDS3DBuffer);
-    SAFE_RELEASE(ppDSBuffer);
-}
-
 // 0x4D9870
 void CAEAudioHardware::Service() {
+#ifdef USE_DSOUND
     VERIFY(SUCCEEDED(m_pDirectSound3dListener->CommitDeferredSettings()));
     RescaleChannelVolumes();
     if (m_n3dEffectsQueryResult) {
         UpdateReverbEnvironment();
     }
+#endif
     for (const auto ch : GetChannels() | rng::views::drop(1)) {
         ch->SynchPlayback();
     }

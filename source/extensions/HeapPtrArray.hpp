@@ -21,12 +21,7 @@ public:
         }
     }
 
-    constexpr void push_back(const T*& value) {
-        assert(_CrtIsValidHeapPointer(value));
-        std::vector<T*>::push_back(value);
-    }
-
-    constexpr void push_back(T*&& value) {
+    constexpr void push_back(T* value) {
         assert(_CrtIsValidHeapPointer(value));
         std::vector<T*>::push_back(value);
     }

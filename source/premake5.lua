@@ -79,12 +79,19 @@ project "gta_reversed"
 		}
 		
 		removefiles {
-			"game_sa/Audio/OpenAL/**.c*"
+			"game_sa/Audio/OpenAL/**.c*",
+			"game_sa/Audio/**_openal.c*"
 		}
 		
 		removeincludedirs {
 			"game_sa/Audio/OpenAL"
 		}
+	
+	filter "platforms:win-*-openal"
+		removefiles {
+			"game_sa/Audio/**_dsound.c*"
+		}
+
     filter {}
 
     libdirs { 

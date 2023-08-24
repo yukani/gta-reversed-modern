@@ -3,6 +3,7 @@
 #if defined(USE_DSOUND)
 #include "dsound.h"
 #elif defined(USE_OPENAL)
+#include <AL/alc.h>
 #include "OpenAL/OALBase.h"
 #include "OpenAL/OALBuffer.h"
 #include "OpenAL/OALSource.h"

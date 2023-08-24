@@ -63,8 +63,10 @@ public:
     void  Initialise();
     void  InitialiseSilence();
 
+#ifdef USE_DSOUND
     bool AddFX();
     void RemoveFX();
+#endif
 
     int32 UpdatePlayTime();
 
@@ -81,8 +83,8 @@ private:
     friend void InjectHooksMain();
     static void InjectHooks();
 
-    CAEStreamingChannel* Constructor(IDirectSound* directSound, uint16 channelId) {
-        this->CAEStreamingChannel::CAEStreamingChannel(directSound, channelId);
+    CAEStreamingChannel* Constructor(void* platform, uint16 channelId) {
+        this->CAEStreamingChannel::CAEStreamingChannel(platform, channelId);
         return this;
     }
 
@@ -119,9 +121,14 @@ private:
     }
 
     // NOTSA
-    void DirectSoundBufferFadeToSilence() {
-        if (!AESmoothFadeThread.RequestFade(m_pDirectSoundBuffer, -100.0, 35, true))
+    void FadeToSilence() {
+#if defined(USE_DSOUND)
+        if (!AESmoothFadeThread.RequestFade(m_pDirectSoundBuffer, -100.0f, 35, true))
             m_pDirectSoundBuffer->Stop();
+#elif defined(USE_OPENAL)
+        if (!AESmoothFadeThread.RequestFade(m_pSource, -100.0f, 35, true))
+            m_pSource->Stop();
+#endif
     }
 };
 

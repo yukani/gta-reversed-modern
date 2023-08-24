@@ -4,7 +4,11 @@
 
 #include <ObjIdl.h>
 
-class CAEDataStream : public IStream {
+class CAEDataStream
+#ifdef WIN32
+    : public IStream
+#endif
+{
 public:
     FILESTREAM m_pFileHandle;
     char*      m_pszFilename;
@@ -20,6 +24,7 @@ public:
     CAEDataStream(int32 trackId, char* filename, uint32 startPosition, uint32 length, bool encrypted);
     ~CAEDataStream();
 
+#ifdef WIN32
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** objout) override;
     ULONG STDMETHODCALLTYPE   AddRef() override;
     ULONG STDMETHODCALLTYPE   Release() override;
@@ -34,6 +39,7 @@ public:
     HRESULT STDMETHODCALLTYPE UnlockRegion(ULARGE_INTEGER libOffset, ULARGE_INTEGER cb, DWORD dwLockType) override;
     HRESULT STDMETHODCALLTYPE Stat(STATSTG* statout, DWORD flags) override;
     HRESULT STDMETHODCALLTYPE Clone(IStream** target) override;
+#endif
 
     bool   Initialise();
     size_t FillBuffer(void* dest, size_t size);
@@ -48,5 +54,8 @@ private:
     CAEDataStream* Constructor(int32 trackID, char* filename, uint32 startPosition, uint32 length, int32 encrypted);
     void           Destructor();
 };
-
-VALIDATE_SIZE(CAEDataStream, 0x28);
+#ifdef WIN32
+VALIDATE_SIZE(CAEDataStream, 0x24 + sizeof(IStream));
+#else
+VALIDATE_SIZE(CAEDataStream, 0x24);
+#endif
