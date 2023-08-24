@@ -28,7 +28,7 @@ public:
     uint32 m_nLengthInBytes;
     uint32 field_30; // unused
     float  m_fVolume;
-    bool   m_bNoScalingFactor;
+    bool   m_bPaused;
     uint8  field_39; // unused
     uint16 m_nChannelId;
     uint32 m_nFrequency;

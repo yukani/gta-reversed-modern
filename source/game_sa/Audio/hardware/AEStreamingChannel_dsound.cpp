@@ -97,33 +97,6 @@ void CAEStreamingChannel::SetBassEQ(uint8 mode, float gain) {
     }
 }
 
-// 0x4F2060
-void CAEStreamingChannel::SetFrequencyScalingFactor(float factor) {
-    if (factor == 0.0f) {
-        if (!m_pDirectSoundBuffer || m_nState == StreamingChannelState::UNK_MINUS_7 || !IsBufferPlaying())
-            return;
-
-        FadeToSilence();
-        m_nState = StreamingChannelState::UNK_MINUS_7;
-    } else {
-        SetFrequency(static_cast<uint32>((float)m_nOriginalFrequency * factor));
-
-        if (m_nState != StreamingChannelState::UNK_MINUS_7)
-            return;
-
-        if (!m_pDirectSoundBuffer)
-            return;
-
-        m_pDirectSoundBuffer->SetVolume(-10'000);
-        m_pDirectSoundBuffer->Play(0, 0, m_bLooped ? DSBPLAY_LOOPING : 0);
-
-        if (!AESmoothFadeThread.RequestFade(m_pDirectSoundBuffer, m_fVolume, 35, true))
-            m_pDirectSoundBuffer->SetVolume(static_cast<int32>(m_fVolume * 100.0f));
-
-        m_nState = StreamingChannelState::UNK_MINUS_1;
-    }
-}
-
 // 0x4F23D0, broken af
 void CAEStreamingChannel::PrepareStream(CAEStreamingDecoder* newDecoder, int8 arg2, uint32 audioBytes) {
     if (!newDecoder || !m_pDirectSoundBuffer)

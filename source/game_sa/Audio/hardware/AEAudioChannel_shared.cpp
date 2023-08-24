@@ -30,7 +30,7 @@ CAEAudioChannel::CAEAudioChannel(void* platform, uint16 channelId, uint32 sample
     m_nFrequency         = samplesPerSec;
     m_nOriginalFrequency = samplesPerSec;
     m_fVolume            = -100.0f;
-    m_bNoScalingFactor   = false;
+    m_bPaused   = false;
     m_bLooped            = false;
     m_bShouldStop        = false;
 
@@ -101,7 +101,7 @@ bool CAEAudioChannel::IsBufferPlaying() const {
         return false;
 
     m_pSource->ObtainSource();
-    if (m_pSource->m_currentState == AL_NONE)
+    if (m_pSource->m_currentState != AL_NONE)
         return false;
 
     m_pSource->m_currentState = AL_STOPPED;

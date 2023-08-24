@@ -3,11 +3,12 @@
 #include <platform/win/platform.h>
 #include <platform/platform.h>
 #include <ddraw.h>
-#include <dsound.h>
 #include "VideoMode.h"
 #include "VideoModeSelectDialog.h"
 #include "LoadingScreen.h"
 #include "C_PcSave.h"
+
+#include "audio_platform.h"
 
 // NOTE: This macro doesn't do a whole lot. Leaving it here for completeness sake
 #define USE_D3D9
@@ -44,8 +45,9 @@ BOOL CheckDirectX() {
     return TRUE;
 }
 
-//! 0x745840 - Check if DirectSound can be loaded
-BOOL CheckDirectSound() {
+//! 0x745840 - Check if DirectSound/OpenAL can be loaded
+BOOL CheckSoundDevice() {
+#if defined(USE_DSOUND)
     LPDIRECTSOUND ds;
 
     if (FAILED(DirectSoundCreate(NULL, &ds, NULL))) {
@@ -58,6 +60,14 @@ BOOL CheckDirectSound() {
     ds->Release();
 
     return SUCCEEDED(hr);
+#elif defined(USE_OPENAL)
+    auto* dev = alcOpenDevice(nullptr);
+    if (!dev)
+        return FALSE;
+
+    alcCloseDevice(dev);
+    return TRUE;
+#endif
 }
 
 // 0x7465B0
@@ -160,7 +170,10 @@ RwBool psInitialize() {
     // CheckDirectX() Checks for Dx9 only, so use that
     s_OSStatus.DxVer = 0x900;
 
-    if (!CheckDirectSound()) {
+    if (!CheckSoundDevice()) {
+#ifdef USE_OPENAL
+        NOTSA_LOG_CRIT("Couldn't init OpenAL-Soft device. This is not about your sound card!");
+#endif
         MessageBoxW(
             NULL,
             (LPCWSTR)TheText.Get("WIN_NSC"), // Grand Theft Auto San Andreas requires a sound card (I guess?)
@@ -589,6 +602,6 @@ void WinPsInjectHooks() {
     RH_ScopedGlobalInstall(psSelectDevice, 0x746190);
 
     RH_ScopedGlobalInstall(InitialiseLanguage, 0x7465B0);
-    RH_ScopedGlobalInstall(CheckDirectSound, 0x745840);
+    RH_ScopedGlobalInstall(CheckSoundDevice, 0x745840, {.locked = true});
     RH_ScopedGlobalInstall(GetVideoMemInfo, 0x7455E0);
 }

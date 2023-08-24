@@ -37,11 +37,7 @@ public:
     void   SynchPlayback() override;
     void   Stop() override;
 
-#if defined(USE_DSOUND)
-    bool SetAudioBuffer(IDirectSound3DBuffer* buffer, uint16 size, int16 f88, int16 f8c, int16 loopOffset, uint16 frequency);
-#elif defined(USE_OPENAL)
-    bool SetAudioBuffer(OALBuffer* buffer, uint16 size, int16 f88, int16 f8c, int16 loopOffset, uint16 frequency);
-#endif
+    bool SetAudioBuffer(void* sourceBuffer, uint16 size, int16 f88, int16 f8c, int16 loopOffset, uint16 frequency);
 
 private:
     friend void InjectHooksMain();

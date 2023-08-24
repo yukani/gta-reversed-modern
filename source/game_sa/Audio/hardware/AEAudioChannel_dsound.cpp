@@ -5,21 +5,21 @@
 void CAEAudioChannel::SetFrequencyScalingFactor(float factor) {
     if (factor == 0.0F) {
         if (m_pDirectSoundBuffer &&
-            !m_bNoScalingFactor &&
+            !m_bPaused &&
             IsBufferPlaying() &&
             !AESmoothFadeThread.RequestFade(m_pDirectSoundBuffer, -100.0F, -1, true)
         ) {
             m_pDirectSoundBuffer->Stop();
         }
 
-        m_bNoScalingFactor = true;
+        m_bPaused = true;
         return;
     }
 
     const auto newFreq = static_cast<uint32>(float(m_nOriginalFrequency) * factor);
     SetFrequency(newFreq);
 
-    if (m_bNoScalingFactor) {
+    if (m_bPaused) {
         if (m_pDirectSoundBuffer) {
             const auto curPos = GetCurrentPlaybackPosition();
             if (curPos != 0) {
@@ -33,6 +33,6 @@ void CAEAudioChannel::SetFrequencyScalingFactor(float factor) {
                 m_pDirectSoundBuffer->SetVolume(volume);
             }
         }
-        m_bNoScalingFactor = false;
+        m_bPaused = false;
     }
 }

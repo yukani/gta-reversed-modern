@@ -230,6 +230,52 @@ void CAEStreamingChannel::Stop() {
     }
 }
 
+// 0x4F2060
+void CAEStreamingChannel::SetFrequencyScalingFactor(float factor) {
+    if (factor == 0.0f) {
+#if defined(USE_DSOUND)
+        if (!m_pDirectSoundBuffer)
+            return;
+#elif defined(USE_OPENAL)
+        if (!m_pSource)
+            return;
+#endif
+
+        if (m_nState == StreamingChannelState::UNK_MINUS_7 || !IsBufferPlaying())
+            return;
+
+        FadeToSilence();
+        m_nState = StreamingChannelState::UNK_MINUS_7;
+    } else {
+        SetFrequency(static_cast<uint32>((float)m_nOriginalFrequency * factor));
+
+        if (m_nState != StreamingChannelState::UNK_MINUS_7)
+            return;
+
+#if defined(USE_DSOUND)
+        if (!m_pDirectSoundBuffer)
+            return;
+
+        m_pDirectSoundBuffer->SetVolume(-10'000);
+        m_pDirectSoundBuffer->Play(0, 0, m_bLooped ? DSBPLAY_LOOPING : 0);
+
+        if (!AESmoothFadeThread.RequestFade(m_pDirectSoundBuffer, m_fVolume, 35, true))
+            m_pDirectSoundBuffer->SetVolume(static_cast<int32>(m_fVolume * 100.0f));
+#elif defined(USE_OPENAL)
+        if (!m_pSource)
+            return;
+
+        m_pSource->SetVolume(m_fVolume);
+        m_pSource->ObtainSource();
+        if (m_pSource->m_type != OALSourceType::OST_Preloop)
+            alSourcei(m_pSource->m_sourceId, AL_LOOPING, m_bLooped);
+        m_pSource->Play();
+#endif
+
+        m_nState = StreamingChannelState::UNK_MINUS_1;
+    }
+}
+
 // 0x4F2550
 void CAEStreamingChannel::Service() {
     plugin::CallMethod<0x4F2550, CAEStreamingChannel*>(this);
