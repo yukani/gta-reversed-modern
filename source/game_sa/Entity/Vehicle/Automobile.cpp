@@ -577,6 +577,9 @@ void CAutomobile::ProcessControl()
     }
 
     for (auto& collisionEntity : m_apWheelCollisionEntity) {
+        if (collisionEntity == (CPhysical*)0xffffffff) {
+            collisionEntity = nullptr;
+        }
         if (collisionEntity) {
             vehicleFlags.bRestingOnPhysical = true;
             if (!CWorld::bForceProcessControl && collisionEntity->m_bIsInSafePosition) {
