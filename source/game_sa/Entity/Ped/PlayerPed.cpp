@@ -75,6 +75,7 @@ void CPlayerPed::InjectHooks() {
     RH_ScopedInstall(EvaluateTarget, 0x60D020);
     RH_ScopedInstall(PlayerHasJustAttackedSomeone, 0x60D5A0);
     RH_ScopedInstall(SetupPlayerPed, 0x60D790);
+    RH_ScopedInstall(SetRealMoveAnim, 0x60A9C0);
 
     RH_ScopedVMTInstall(ProcessControl, 0x60EA90);
 }
@@ -729,7 +730,342 @@ void CPlayerPed::HandlePlayerBreath(bool bDecreaseAir, float fMultiplier) {
 
 // 0x60A9C0
 void CPlayerPed::SetRealMoveAnim() {
-    plugin::CallMethod<0x60A9C0, CPlayerPed *>(this);
+    const auto GetAnim = [this](AnimationId id) {
+        return RpAnimBlendClumpGetAssociation(m_pRwClump, id);
+    };
+
+    CAnimBlendAssociation* selectedAnim{};
+
+    auto aWalk      = GetAnim(ANIM_ID_WALK),
+         aRun       = GetAnim(ANIM_ID_RUN),
+         aSprint    = GetAnim(ANIM_ID_SPRINT),
+         aWalkStart = GetAnim(ANIM_ID_WALK_START),
+         aIdle      = GetAnim(ANIM_ID_IDLE),
+         aRunStop   = GetAnim(ANIM_ID_RUN_STOP),
+         aRunStopR  = GetAnim(ANIM_ID_RUN_STOPR),
+         aTurnL     = GetAnim(ANIM_ID_TURN_L),
+         aTurnR     = GetAnim(ANIM_ID_TURN_R),
+         aIdleTired = GetAnim(ANIM_ID_IDLE_TIRED);
+
+    selectedAnim = aSprint;
+    if (bResetWalkAnims) {
+        if (aWalk) {
+            aWalk->SetCurrentTime(0.0f);
+        }
+        if (aRun) {
+            aRun->SetCurrentTime(0.0f);
+        }
+        if (aSprint) {
+            aRun->SetCurrentTime(0.0f);
+        }
+
+        bResetWalkAnims = false;
+    }
+
+    const auto ApplySprint = [&] {
+        //label_144:
+        const auto animSpeed = [&] {
+            if (!m_pPlayerData->m_bAdrenaline) {
+                return 1.0f;
+            }
+
+            if (CCheat::IsActive(CHEAT_ADRENALINE_MODE) || CTimer::GetTimeInMS() <= m_pPlayerData->m_nAdrenalineEndTime) {
+                CTimer::SetTimeScale(1.0f / 3.0f);
+                return 2.0f;
+            }
+
+            CTimer::SetTimeScale(1.0f);
+            return 1.0f;
+        }();
+
+        // label_157:
+        if (selectedAnim) {
+            selectedAnim->SetSpeed(animSpeed);
+
+            if (CCamera::GetActiveCamera().m_nMode == MODE_FIXED) {
+                selectedAnim->SetSpeed(2.0f / 3.0f);
+            } else {
+                const auto r = std::min(GetButtonSprintResults(SPRINT_GROUND), 1.0f);
+                selectedAnim->SetSpeed(r); // TODO: make sure this is correct
+            }
+        }
+    };
+
+    if (aRunStop && aRunStop->IsPlaying() || aRunStopR && aRunStopR->IsPlaying()) {
+        m_nMoveState = PEDMOVE_RUN;
+
+        if (aRunStop && !aRunStop->IsPlaying() && aRunStop->GetHier()->GetTotalTime() > aRunStop->GetCurrentTime()) {
+            aRunStop->SetFlag(ANIMATION_IS_PLAYING, true);
+        }
+
+        return ApplySprint();
+    }
+
+    if (aRunStop && aRunStop->GetBlendDelta() >= 0.0f || aRunStopR && aRunStopR->GetBlendDelta() >= 0.0f) {
+        if (aRunStop) {
+            aRunStop->SetFlag(ANIMATION_IS_BLEND_AUTO_REMOVE);
+            aRunStop->SetBlendAmount(1.0f);
+            aRunStop->SetBlendDelta(-8.0f);
+        } else if (aRunStopR) {
+            aRunStopR->SetFlag(ANIMATION_IS_BLEND_AUTO_REMOVE);
+            aRunStopR->SetBlendAmount(1.0f);
+            aRunStopR->SetBlendDelta(-8.0f);
+        }
+
+        RestoreHeadingRate();
+        if (!aIdle) {
+            aIdle = CAnimManager::BlendAnimation(m_pRwClump, m_nAnimGroup, ANIM_ID_IDLE);
+        }
+        aIdle->SetBlendAmount(0.0f);
+        aIdle->SetBlendDelta(8.0f);
+
+        selectedAnim = aSprint;
+        return ApplySprint();
+    }
+
+    if (m_pPlayerData->m_fMoveBlendRatio == 0.0f && !selectedAnim) {
+        const auto* pad = GetPadFromPlayer();
+        if (pad->GetForceCameraBehindPlayer() && pad->AimWeaponLeftRight(nullptr)
+            && CCamera::GetActiveCamera().m_nMode == MODE_FOLLOWPED) {
+            CAnimBlendAssociation* animToUpdateSpeed{};
+            if (pad->AimWeaponLeftRight(nullptr) >= 0.0f) {
+                if (!aTurnR || aTurnR->GetBlendDelta() < 0.0f
+                    || aTurnR->GetBlendAmount() < 1.0f && aTurnR->GetBlendDelta() <= 0.0f) {
+                    aTurnR = CAnimManager::BlendAnimation(m_pRwClump, ANIM_GROUP_DEFAULT, ANIM_ID_TURN_R, 16.0f);
+                }
+                animToUpdateSpeed = aTurnR;
+            } else {
+                if (!aTurnL || aTurnL->GetBlendDelta() < 0.0f
+                    || aTurnL->GetBlendAmount() < 1.0f && aTurnL->GetBlendDelta() <= 0.0f) {
+                    aTurnL = CAnimManager::BlendAnimation(m_pRwClump, ANIM_GROUP_DEFAULT, ANIM_ID_TURN_L, 16.0f);
+                }
+                animToUpdateSpeed = aTurnL;
+            }
+
+            // NOTSA: |CPad::AnimWeaponLR()| was multiplied by flt_8D24EC = 1.0f.
+            animToUpdateSpeed->SetSpeed(std::abs(pad->AimWeaponLeftRight(nullptr)) / 128.0f);
+
+            if (aIdle && aIdle->GetBlendAmount() <= 0.01f) {
+                delete std::exchange(aIdle, nullptr);
+            }
+        } else if (!aIdle) {
+            // NOTSA: aIdle was not assigned
+            aIdle = CAnimManager::BlendAnimation(m_pRwClump, m_nAnimGroup, ANIM_ID_IDLE, 4.0);
+        }
+
+        auto* intel = GetIntelligence();
+        if (m_pPlayerData->m_fTimeCanRun >= 0.0f
+            || intel->GetTaskFighting() || intel->GetTaskUseGun() || intel->GetTaskDuck()
+            || intel->GetTaskThrow() || intel->GetTaskJetPack()
+            || CWorld::TestSphereAgainstWorld(
+                GetPosition(),
+                0.5f,
+                nullptr,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false
+            )) {
+            if (aIdleTired && aIdleTired->GetBlendAmount() > 0.0f && aIdleTired->GetBlendDelta() >= 0.0f) {
+                aIdleTired->SetFlag(ANIMATION_IS_PLAYING, false);
+                aIdleTired->SetBlendDelta(-2.0f);
+            }
+        } else if (!aIdleTired) {
+            auto* idleTiredAnim = [&] {
+                if (CClothes::GetDefaultPlayerMotionGroup() == ANIM_GROUP_FAT) {
+                    return CAnimManager::BlendAnimation(m_pRwClump, ANIM_GROUP_FAT_TIRED, ANIM_ID_IDLE_TIRED, 4.0f);
+                }
+
+                return CAnimManager::BlendAnimation(m_pRwClump, ANIM_GROUP_DEFAULT, ANIM_ID_IDLE_TIRED, 4.0f);
+            }();
+            idleTiredAnim->SetFlag(ANIMATION_IS_PLAYING, true);
+        }
+
+        SetMoveState(PEDMOVE_STILL);
+        selectedAnim = aSprint;
+        return ApplySprint();
+    }
+
+    if (aIdle) {
+        if (aWalkStart) {
+            aWalkStart->SetBlendAmount(1.0f);
+            aWalkStart->SetBlendDelta(0.0f);
+        } else {
+            aWalkStart = CAnimManager::AddAnimation(m_pRwClump, m_nAnimGroup, ANIM_ID_WALK_START);
+        }
+
+        if (aWalk) {
+            aWalk->SetCurrentTime(0.0f);
+        }
+        if (aRun) {
+            aRun->SetCurrentTime(0.0f);
+        }
+        delete std::exchange(aIdle, nullptr);
+
+        if (aIdleTired) {
+            aIdleTired->SetBlendDelta(-4.0f);
+        }
+
+        if (aSprint) {
+            delete std::exchange(aSprint, nullptr);
+        }
+
+        SetMoveState(PEDMOVE_WALK);
+    }
+
+    const auto DeleteIfAnim = [&](CAnimBlendAssociation*& assoc, bool restoreHeading) {
+        if (!assoc) {
+            return;
+        }
+
+        delete std::exchange(assoc, nullptr);
+        if (restoreHeading) {
+            RestoreHeadingRate();
+        }
+        selectedAnim = aSprint;
+    };
+
+    DeleteIfAnim(aRunStop, true);
+    DeleteIfAnim(aRunStopR, true);
+    DeleteIfAnim(aTurnL, false);
+    DeleteIfAnim(aTurnR, false);
+
+    if (!aWalk) {
+        aWalk = CAnimManager::AddAnimation(m_pRwClump, m_nAnimGroup, ANIM_ID_WALK);
+        aWalk->SetBlendAmount(0.0f);
+        selectedAnim = aSprint;
+    }
+
+    if (!aRun) {
+        aRun = CAnimManager::AddAnimation(m_pRwClump, m_nAnimGroup, ANIM_ID_RUN);
+        aRun->SetBlendAmount(0.0f);
+        selectedAnim = aSprint;
+    }
+
+    if (aWalkStart && !aWalkStart->IsPlaying()
+        || aWalkStart && aWalkStart->GetHier()->GetTotalTime() <= aWalkStart->GetCurrentTime() + aWalkStart->m_TimeStep)
+    // ^~~: NOTSA
+    {
+        delete std::exchange(aWalkStart, nullptr);
+        aWalk->SetFlag(ANIMATION_IS_PLAYING, true);
+        aRun->SetFlag(ANIMATION_IS_PLAYING, true);
+        selectedAnim = aSprint;
+    }
+
+    if (m_nMoveState == PEDMOVE_SPRINT && aWalkStart) {
+        m_nMoveState = PEDMOVE_STILL;
+    }
+
+    if (selectedAnim && (m_nMoveState != PEDMOVE_SPRINT || m_pPlayerData->m_fMoveBlendRatio < 0.4f)) {
+        if (selectedAnim->GetBlendAmount() == 0.0f) {
+            selectedAnim->SetFlag(ANIMATION_IS_BLEND_AUTO_REMOVE, true);
+            selectedAnim->SetBlendDelta(-1000.0f);
+        } else if (selectedAnim->GetBlendDelta() >= 0.0f || selectedAnim->GetBlendAmount() >= 0.0f) {
+            if (m_pPlayerData->m_fMoveBlendRatio >= 0.4f) {
+                if (selectedAnim->GetBlendDelta() >= 0.0f) {
+                    selectedAnim->SetFlag(ANIMATION_IS_BLEND_AUTO_REMOVE, true);
+                    selectedAnim->SetBlendDelta(-1.0f);
+                    aRun->SetBlendDelta(1.0f);
+                }
+            } else {
+                auto* runAnim = [&] {
+                    if (selectedAnim->GetTimeProgress() >= 0.5f) {
+                        return CAnimManager::AddAnimation(m_pRwClump, ANIM_GROUP_DEFAULT, ANIM_ID_RUN_STOPR);
+                    }
+                    return CAnimManager::AddAnimation(m_pRwClump, ANIM_GROUP_DEFAULT, ANIM_ID_RUN_STOP);
+                }();
+
+                runAnim->SetBlendAmount(1.0f);
+                runAnim->SetDeleteCallback(RestoreHeadingRateCB, this);
+                selectedAnim         = aSprint;
+                m_fHeadingChangeRate = 0.0f;
+                aSprint->SetFlag(ANIMATION_IS_BLEND_AUTO_REMOVE, true);
+                aWalk->SetFlag(ANIMATION_IS_PLAYING, false);
+                aWalk->SetBlend(0.0f, 0.0f);
+                aRun->SetFlag(ANIMATION_IS_PLAYING, false);
+                aRun->SetBlend(0.0f, 0.0f);
+            }
+        } else if (m_pPlayerData->m_fMoveBlendRatio < 1.0f) {
+            selectedAnim->SetBlendDelta(-8.0f);
+            aRun->SetBlendDelta(8.0f);
+        }
+
+        if (m_pPlayerData->m_fMoveBlendRatio > 1.0f) {
+            m_nMoveState = PEDMOVE_RUN;
+            // jump label_144
+        }
+        // jump_label_139;
+    }
+
+    if (aWalkStart) {
+        aWalk->SetFlag(ANIMATION_IS_PLAYING, false);
+        aWalk->SetBlendAmount(0.0f);
+        aRun->SetFlag(ANIMATION_IS_PLAYING, false);
+        aRun->SetBlendAmount(0.0f);
+        return ApplySprint();
+    }
+
+    if (m_nMoveState != PEDMOVE_SPRINT) {
+        if (m_pPlayerData->m_fMoveBlendRatio >= 1.0f) {
+            if (const auto r = m_pPlayerData->m_fMoveBlendRatio; r < 2.0f) {
+                aWalk->SetBlend(2.0f - r, 0.0f);
+                aRun->SetBlend(r - 1.0f, 0.0f);
+                m_nMoveState = PEDMOVE_RUN;
+                return ApplySprint();
+            }
+            aWalk->SetBlend(0.0f, 0.0f);
+            aRun->SetBlend(1.0f, 0.0f);
+            m_nMoveState = PEDMOVE_RUN;
+            CStats::UpdateStatsWhenRunning();
+            selectedAnim = aSprint;
+            return ApplySprint();
+        }
+
+        aWalk->SetBlend(0.0f, 0.0f);
+        aRun->SetBlend(1.0f, 0.0f);
+        m_nMoveState = PEDMOVE_WALK;
+        return ApplySprint();
+        ;
+    }
+
+    if (selectedAnim) {
+        if (selectedAnim->GetBlendDelta() < 0.0f) {
+            selectedAnim->SetBlendDelta(2.0f);
+            aRun->SetBlendDelta(-2.0f);
+        }
+
+        if (!selectedAnim) {
+            return ApplySprint();
+        }
+        CStats::UpdateStatsWhenSprinting();
+        selectedAnim = aSprint;
+        return ApplySprint();
+    }
+
+    if (aRun->GetBlendAmount() >= 1.0f) {
+        aSprint      = CAnimManager::BlendAnimation(m_pRwClump, m_nAnimGroup, ANIM_ID_SPRINT, 2.0f);
+        selectedAnim = aSprint;
+        // label_135:
+        if (!selectedAnim) {
+            return ApplySprint();
+        }
+        CStats::UpdateStatsWhenSprinting();
+        selectedAnim = aSprint;
+        return ApplySprint();
+    }
+
+    if (aWalk->GetBlendAmount() == 0.0f && aRun->GetBlendAmount() == 0.0f) {
+        aWalk->SetBlendAmount(1.0f);
+    }
+    if (aRun->GetBlendDelta() <= 0.0f) {
+        aRun = CAnimManager::BlendAnimation(m_pRwClump, m_nAnimGroup, ANIM_ID_RUN, 4.0f);
+        selectedAnim = aSprint;
+    }
+    m_pPlayerData->m_fMoveBlendRatio = aRun->GetBlendDelta() + 1.0f;
+
+    return ApplySprint();
 }
 
 // 0x60B460
