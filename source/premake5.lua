@@ -57,7 +57,6 @@ project "gta_sa_modern"
         "TRACY_ENABLE",
         "TRACY_ON_DEMAND",
         "TRACY_CALLSTACK",
-
         "SPDLOG_USE_STD_FORMAT",
 
         "SA_SKINNED_PEDS"
