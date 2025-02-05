@@ -39,8 +39,7 @@ project "gta_sa_modern"
         "../libs/dxsdk",
         "../libs/spdlog/include",
         "../libs/tracy/public",
-        "../libs/json/include",
-        "../libs/libjpeg-turbo/src"
+        "../libs/json/include"
     }
 
     filter "options:script-tracing"
@@ -78,8 +77,7 @@ project "gta_sa_modern"
         "dsound.lib",
         "d3d9.lib",
         "dbghelp",
-        "json",
-        "libjpeg-turbo"
+        "json"
     }
 
     libdirs { 
@@ -89,7 +87,6 @@ project "gta_sa_modern"
         "../%{cfg.targetdir}/vorbisfile.lib", 
         "../%{cfg.targetdir}/vorbisenc.lib",  
         "../%{cfg.targetdir}/imgui.lib",
-        "../%{cfg.targetdir}/libjpeg.lib",
         "../libs/dxsdk/d3d9.lib", 
         "../libs/dxsdk/dinput.lib",
     }

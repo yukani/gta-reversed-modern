@@ -247,37 +247,3 @@ project "json"
     includedirs { 
         "json/include",
     }
-
-project "libjpeg-turbo"
-    language "C++"
-    kind "StaticLib"
-    targetname "libjpeg"
-    warnings "Off"
-
-    vpaths {
-        ["Headers/*"] = {"libjpeg-turbo/src/**.h*",},
-        ["Sources/*"] = {"libjpeg-turbo/src/**.c*",},
-        ["*"] = {"premake5.lua", "CMakeLists.txt"}
-    }
-
-    includedirs {
-        ".",
-        "libjpeg-turbo/src/"
-    }
-
-    files {
-        "libjpeg-turbo/src/turbojpeg.c",
-        "libjpeg-turbo/src/jcapimin.c",
-        "libjpeg-turbo/src/jcomapi.c",
-        "libjpeg-turbo/src/jcmarker.c",
-        "libjpeg-turbo/src/jutils.c",
-        "libjpeg-turbo/src/jmemmgr.c",
-        "libjpeg-turbo/src/jmemnobs.c",
-    }
-
-    defines {
-    }
-
---    prebuildcommands {
-  --      "{COPYFILE} libjpeg-turbo-jconfig.h libjpeg-turbo/src/jconfig.h"
-    --}
