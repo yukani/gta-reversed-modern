@@ -297,6 +297,8 @@ VALIDATE_SIZE(t2dEffectPlugin, 0x4);
 
 // vvv https://gtamods.com/wiki/2d_Effect_(RW_Section)
 struct t2dEffectLightStreamData {
+    static constexpr auto SizeOfRequiredFields = 80 - 4;
+
     RwRGBA             Color;
     float              CoronaFarClip;
     float              PointlightRange;
@@ -330,6 +332,8 @@ static_assert(std::is_trivially_copyable_v<t2dEffectRoadsignStreamData>);
 VALIDATE_SIZE(t2dEffectRoadsignStreamData, 88);
 
 struct t2dEffectEnExStreamData {
+    static constexpr auto SizeOfRequiredFields = 44 - 4;
+
     float  EnterAngle;
     RwV2d  Radius;
     RwV3d  ExitPos;

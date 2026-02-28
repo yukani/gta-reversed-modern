@@ -182,7 +182,7 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
         C2dEffect::ms_nTxdSlot = CTxdStore::FindTxdSlot("particle");
     }
 
-    uint32 numEffects{};
+    int32 numEffects{};
     RwStreamRead(stream, &numEffects, sizeof(numEffects));
     if (!numEffects) {
         return stream;
@@ -190,8 +190,8 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
 
     auto* e = static_cast<t2dEffectPluginEntry*>(CMemoryMgr::Malloc(numEffects * sizeof(C2dEffect) + sizeof(t2dEffectPluginEntry::m_nObjCount)));
 
-    uint32 countedNumFx{numEffects};
-    for (auto i = 0u; i < numEffects; i++) {
+    int32 countedNumFx{numEffects};
+    for (auto i = 0; i < numEffects; i++) {
         auto& fx = e->m_pObjects[i];
         RwStreamRead(stream, &fx.m_Pos, sizeof(CVector));
 
@@ -205,8 +205,8 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
             auto* light = C2dEffect::Cast<C2dEffectLight>(&fx);
 
             t2dEffectLightStreamData d{};
-            if (sectionSize != 80 && sectionSize != 76) {
-                NOTSA_LOG_DEBUG("Invalid light 2dfx section size: {}, skipping...", sectionSize);
+            if (sectionSize != sizeof(t2dEffectLightStreamData) && sectionSize != t2dEffectLightStreamData::SizeOfRequiredFields) {
+                NOTSA_LOG_ERR("Invalid light 2dfx section size: {}, skipping...", sectionSize);
                 break;
             }
 
@@ -224,9 +224,9 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
             light->m_nShadowZDistance        = d.ShadowZDistance;
 
             // Lights may not have light dir XYZ values at the end
-            light->offsetX = (sectionSize == 80) ? d.OffsetX : 0;
-            light->offsetY = (sectionSize == 80) ? d.OffsetY : 0;
-            light->offsetZ = (sectionSize == 80) ? d.OffsetZ : 100;
+            light->offsetX = sectionSize == sizeof(t2dEffectLightStreamData) ? d.OffsetX : 0;
+            light->offsetY = sectionSize == sizeof(t2dEffectLightStreamData) ? d.OffsetY : 0;
+            light->offsetZ = sectionSize == sizeof(t2dEffectLightStreamData) ? d.OffsetZ : 100;
 
             {
                 CTxdStore::ScopedTXDSlot _{ C2dEffect::ms_nTxdSlot };
@@ -239,7 +239,7 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
             auto* sign = C2dEffect::Cast<C2dEffectRoadsign>(&fx);
 
             if (sectionSize != sizeof(t2dEffectRoadsignStreamData)) {
-                NOTSA_LOG_DEBUG("Invalid roadsign 2dfx section size: {}", sectionSize);
+                NOTSA_LOG_ERR("Invalid roadsign 2dfx section size: {}", sectionSize);
                 break;
             }
 
@@ -256,8 +256,8 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
         case e2dEffectType::EFFECT_ENEX: {
             auto* enex = C2dEffect::Cast<C2dEffectEnEx>(&fx);
 
-            if (sectionSize != 44 && sectionSize != 40) {
-                NOTSA_LOG_DEBUG("Invalid enex 2dfx section size: {}", sectionSize);
+            if (sectionSize != sizeof(t2dEffectEnExStreamData) && sectionSize != t2dEffectEnExStreamData::SizeOfRequiredFields) {
+                NOTSA_LOG_ERR("Invalid enex 2dfx section size: {}", sectionSize);
                 break;
             }
 
@@ -272,8 +272,8 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
             enex->m_nFlags1     = d.Flags1;
             std::memcpy(enex->m_szInteriorName, d.InteriorName, sizeof(d.InteriorName));
 
-            enex->m_nTimeOn  = (sectionSize == 44) ? d.TimeOn : 0;
-            enex->m_nTimeOff = (sectionSize == 44) ? d.TimeOn : 24;
+            enex->m_nTimeOn  = sectionSize == sizeof(t2dEffectEnExStreamData) ? d.TimeOn : 0;
+            enex->m_nTimeOff = sectionSize == sizeof(t2dEffectEnExStreamData) ? d.TimeOn : 24;
             enex->m_nFlags2  = d.Flags2; // TODO: ???
             continue;
         }
@@ -281,7 +281,7 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
             auto* cp = C2dEffect::Cast<C2dEffectCoverPoint>(&fx);
 
             if (sectionSize != sizeof(t2dEffectCoverPointStreamData)) {
-                NOTSA_LOG_DEBUG("Invalid cp 2dfx section size: {}", sectionSize);
+                NOTSA_LOG_ERR("Invalid cp 2dfx section size: {}", sectionSize);
                 break;
             }
 
@@ -293,14 +293,12 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
         }
         case e2dEffectType::EFFECT_SUN_GLARE:
             NOTSA_UNREACHABLE("sunglare 2dfx unused");
-            RwStreamSkip(stream, sectionSize);
-            --i; // We haven't added anything, so skip incrementing.
             break;
         case e2dEffectType::EFFECT_TRIGGER_POINT: {
             auto* wheel = C2dEffect::Cast<C2dEffectSlotMachineWheel>(&fx);
 
             if (sectionSize != sizeof(t2dEffectSlotMachineWheelStreamData)) {
-                NOTSA_LOG_DEBUG("Invalid slot machine wheel 2dfx section size: {}", sectionSize);
+                NOTSA_LOG_ERR("Invalid slot machine wheel 2dfx section size: {}", sectionSize);
                 break;
             }
 
@@ -313,7 +311,7 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
             auto* e = C2dEffect::Cast<C2dEffectEscalator>(&fx);
 
             if (sectionSize != sizeof(t2dEffectEscalatorStreamData)) {
-                NOTSA_LOG_DEBUG("Invalid escalator 2dfx section size: {}", sectionSize);
+                NOTSA_LOG_ERR("Invalid escalator 2dfx section size: {}", sectionSize);
                 break;
             }
 
@@ -329,7 +327,7 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
             auto* pa = C2dEffect::Cast<C2dEffectPedAttractor>(&fx);
 
             if (sectionSize != sizeof(t2dEffectPedAttractorStreamData)) {
-                NOTSA_LOG_DEBUG("Invalid ped attractor 2dfx section size: {}", sectionSize);
+                NOTSA_LOG_ERR("Invalid ped attractor 2dfx section size: {}", sectionSize);
                 break;
             }
 
@@ -347,7 +345,7 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
             auto* p = C2dEffect::Cast<C2dEffectParticle>(&fx);
 
             if (sectionSize != sizeof(t2dEffectParticleStreamData)) {
-                NOTSA_LOG_DEBUG("Invalid particle 2dfx section size: {}", sectionSize);
+                NOTSA_LOG_ERR("Invalid particle 2dfx section size: {}", sectionSize);
                 break;
             }
 
@@ -357,8 +355,8 @@ RwStream* Rwt2dEffectPluginDataChunkReadCallBack(RwStream* stream, RwInt32 binar
             continue;
         }
         default:
-            NOTSA_LOG_WARN("Unknown 2dfx type: {}", +fx.m_Type);
-            continue; // not skipping unintendedly?
+            NOTSA_LOG_ERR("Unknown 2dfx type: {}", +fx.m_Type);
+            continue; // not skipping unintended?
         }
 
         RwStreamSkip(stream, sectionSize);
