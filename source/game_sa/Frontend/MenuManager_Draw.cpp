@@ -12,6 +12,10 @@
 #include "ControllerConfigManager.h"
 #include "VideoMode.h"
 
+#ifdef USE_GALLERY
+#include "FrontendScreensPC.h"
+#endif
+
 using enum eControllerAction;
 
 constexpr std::array<eControllerAction, 28> ControllerActionsAvailableOnFoot = {
@@ -395,6 +399,12 @@ void CMenuManager::DrawStandardMenus(bool drawTitle) {
     if (m_nCurrentScreen == eMenuScreen::SCREEN_AUDIO_SETTINGS && drawTitle) {
         PrintRadioStationList();
     }
+
+    #ifdef USE_GALLERY
+    if (m_nCurrentScreen == eMenuScreen::SCREEN_GALLERY) {
+        DrawGallery();
+    }
+    #endif
 
     if (drawTitle && aScreens[m_nCurrentScreen].m_szTitleName[0]) {
         if (m_nCurrentScreen != eMenuScreen::SCREEN_MAP || !m_bMapLoaded) {

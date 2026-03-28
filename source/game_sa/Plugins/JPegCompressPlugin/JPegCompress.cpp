@@ -215,5 +215,59 @@ void JPegDecompressToVramFromBuffer(RwRaster* raster, bool enable) {
     };
 
     src.next_input_byte = g_ScreenshotFileBuf.data();
+    src.bytes_in_buffer = g_ScreenshotFileBuf.size();
     JPegDecompressToRaster(raster, src);
+}
+
+// NOTSA
+void JPegDecompressToRasterFromBuffer(RwRaster* raster, std::span<uint8> buffer) {
+    jpeg_error_mgr         jerr{};
+    jpeg_decompress_struct cinfo{
+        .err = jpeg_std_error(&jerr)
+    };
+    jerr.error_exit = JPegErrorExit;
+
+    jpeg_create_decompress(&cinfo);
+    jpeg_mem_src(&cinfo, buffer.data(), buffer.size());
+
+    if (jpeg_read_header(&cinfo, TRUE) == JPEG_HEADER_OK && jpeg_start_decompress(&cinfo)) {
+        cinfo.dct_method      = JDCT_FLOAT;
+        cinfo.out_color_space = JCS_RGB; // Output as 3-byte RGB
+
+        uint8*      pixels    = reinterpret_cast<uint8*>(RwRasterLock(raster, 0, rwRASTERLOCKWRITE));
+        const int32 stride    = RwRasterGetStride(raster);
+
+        // Dynamically allocate enough memory to safely fit one horizontal scanline
+        std::vector<uint8> rowBuffer(cinfo.output_width * cinfo.output_components);
+
+        while (cinfo.output_scanline < cinfo.output_height) {
+            uint8* scanlinePtr = rowBuffer.data();
+
+            // Output row index before reading line
+            const auto rowIndex = cinfo.output_scanline;
+
+            if (jpeg_read_scanlines(&cinfo, &scanlinePtr, 1) != 1) {
+                break;
+            }
+
+            // Get pointer to the current raster row using stride
+            auto* targetRasterRow = reinterpret_cast<uint32*>(pixels + (rowIndex * stride));
+
+            // Convert JCS_RGB (3 byte) to RwRGBA and map it to the raster pixel format
+            for (auto x = 0u; x < cinfo.output_width; x++) {
+                RwRGBA color{
+                    scanlinePtr[x * 3 + 0],
+                    scanlinePtr[x * 3 + 1],
+                    scanlinePtr[x * 3 + 2],
+                    255
+                };
+                targetRasterRow[x] = RwRGBAToPixel(&color, RwRasterGetFormat(raster));
+            }
+        }
+
+        jpeg_finish_decompress(&cinfo);
+        RwRasterUnlock(raster);
+    }
+
+    jpeg_destroy_decompress(&cinfo);
 }

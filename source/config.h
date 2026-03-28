@@ -19,6 +19,7 @@
 
 // Extensions
 #define EXT_FAST_LOADER
+#define USE_GALLERY
 
 #endif // !BAREBONES
 

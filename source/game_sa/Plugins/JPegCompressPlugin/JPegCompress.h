@@ -44,3 +44,10 @@ void JPegDecompressToRaster(RwRaster* raster, struct jpeg_source_mgr& src);
  * @addr  0x5D05F0
  */
 void JPegDecompressToVramFromBuffer(RwRaster* raster, bool enable);
+
+/**
+ * Decompress a JPEG to memory (RwRaster for displaying in-game. (for PC gallery)
+ *
+ * @notsa
+ */
+void JPegDecompressToRasterFromBuffer(RwRaster* raster, std::span<uint8> buffer);

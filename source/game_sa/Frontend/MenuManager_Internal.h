@@ -77,6 +77,15 @@ enum eMenuScreen : int8 {
     SCREEN_INITIAL,                        // 42  SCREEN_QUIT_GAME_2
     SCREEN_EMPTY,                          // 43
 
+#ifdef USE_GALLERY
+    SCREEN_GALLERY,
+    SCREEN_GALLERY_NO_IMAGES, // NOTSA
+    SCREEN_GALLERY_DEL_ONE,
+    SCREEN_GALLERY_DEL_ALL,
+    SCREEN_GAL_DEL_ONE_PROC,
+    SCREEN_GAL_DEL_ALL_PROC,
+#endif
+
     SCREEN_COUNT,                          // Screen count
 };
 
@@ -165,9 +174,9 @@ enum eMenuAction : int8 { // There's many actions @0x57702E and @0x57CD88
     MENU_ACTION_USER_TRACKS_AUTO_SCAN,    // 64
     MENU_ACTION_STORE_PHOTOS,             // 65
 
-# if defined(USE_GALLERY)
+#ifdef USE_GALLERY
     MENU_ACTION_GALLERY, // (xbox #34)
-# endif
+#endif
     MENU_ACTION_COUNT
 };
 
@@ -243,6 +252,9 @@ inline bool IsSaveSlot(eMenuEntryType slot) {
     return slot >= eMenuEntryType::FIRST_SAVE_SLOT && slot <= eMenuEntryType::MAX_SAVE_SLOT;
 }
 
+#ifndef USE_GALLERY
 static inline auto& aScreens = StaticRef<tMenuScreen[43]>(0x8CE008);
+#else
+extern tMenuScreen aScreens[];
+#endif
 extern SpriteFileName FrontEndFilenames[];
-extern tMenuScreen aScreensX[];

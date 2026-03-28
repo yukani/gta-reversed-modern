@@ -1,6 +1,6 @@
 #pragma once
 
-tMenuScreen aScreensX[] = {
+tMenuScreen aScreens[] = {
   // 00 Stats
   {
     "FEP_STA",
@@ -459,7 +459,7 @@ tMenuScreen aScreensX[] = {
     0,
     {
       { MENU_ACTION_MENU, "FEP_STG",  TI_ENTER, SCREEN_START_GAME,        320, 170,   MENU_ALIGN_CENTER }, // Start Game
-#if USE_GALLERY
+#ifdef USE_GALLERY
       { MENU_ACTION_MENU, "FEH_GAL",  TI_ENTER, SCREEN_GALLERY,             0,   0,   MENU_ALIGN_CENTER }, // Gallery
 #endif
       { MENU_ACTION_MENU, "FEP_OPT",  TI_ENTER, SCREEN_OPTIONS,             0,   0,   MENU_ALIGN_CENTER }, // Options
@@ -580,6 +580,9 @@ tMenuScreen aScreensX[] = {
       { MENU_ACTION_MENU,        "FEH_MAP", TI_ENTER, SCREEN_MAP,             0,   0,   MENU_ALIGN_CENTER  }, // Map
       { MENU_ACTION_MENU,        "FEP_STA", TI_ENTER, SCREEN_NOP,             0,   0,   MENU_ALIGN_CENTER  }, // Stats
       { MENU_ACTION_MENU,        "FEH_BRI", TI_ENTER, SCREEN_BRIEF,           0,   0,   MENU_ALIGN_CENTER  }, // Brief
+#ifdef USE_GALLERY
+      { MENU_ACTION_MENU,        "FEH_GAL", TI_ENTER, SCREEN_GALLERY,         0,   0,   MENU_ALIGN_CENTER  }, // Gallery
+#endif
       { MENU_ACTION_MENU,        "FEP_OPT", TI_ENTER, SCREEN_OPTIONS,         0,   0,   MENU_ALIGN_CENTER  }, // Options
       { MENU_ACTION_MENU,        "FEP_QUI", TI_ENTER, SCREEN_QUIT_GAME_ASK,   0,   0,   MENU_ALIGN_CENTER  }, // Quit Game
       /*
@@ -614,50 +617,54 @@ tMenuScreen aScreensX[] = {
   },
   */
 
-#if USE_GALLERY
+#ifdef USE_GALLERY
   // 44 [xbox #23] Gallery
-  {
-    "FEH_GAL",
-    SCREEN_INITIAL,
-    0,
-  },
-
-  // 45 [xbox #24] Gallery
   {
     "FEH_GAL",
     SCREEN_GALLERY,
     0,
+  },
+
+  // SCREEN_GALLERY -- Gallery
+  {
+    "",
+    SCREEN_INITIAL, //SCREEN_GALLERY,
+    5,
     {
       { MENU_ACTION_TEXT,        "",         TI_STRING,   SCREEN_NOP,                          0,   0,   MENU_ALIGN_DEFAULT },
-      { MENU_ACTION_MENU,        "FEM_OK",   TI_ENTER, SCREEN_NOP,                        320, 270,   MENU_ALIGN_CENTER  },
+      { MENU_ACTION_BACK, "FEDS_TB", TI_ENTER,  SCREEN_INITIAL, 57, 410,   MENU_ALIGN_LEFT }, // Back
     }
   },
 
   // 46 [xbox #25] Gallery
   {
     "FEH_GAL",
-    SCREEN_NONE,
+    SCREEN_INITIAL,
     0,
+    {
+      { MENU_ACTION_TEXT,        "GAL_EGS",         TI_STRING },
+      { MENU_ACTION_MENU, "FEM_OK", TI_ENTER, SCREEN_NOP, 320, 270, MENU_ALIGN_CENTER },
+    }
   },
 
   // 47 [xbox #26] Gallery
   {
     "FEH_GAL",
-    0,
+    SCREEN_NOP,
     0,
   },
 
   // 48 [xbox #27] Gallery
   {
     "FEH_GAL",
-    0,
+    SCREEN_NOP,
     0,
   },
 
   // 49 [xbox #28] Gallery
   {
     "FEH_GAL",
-    0,
+    SCREEN_NOP,
     0,
   },
 
